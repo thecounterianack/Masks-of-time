@@ -7,28 +7,26 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>MASKS OF TIME &mdash; EMPTY SHELL</title>
 <!--
-GAMING FILES 003 - MASKS OF TIME / EMPTY SHELL v4
+GAMING FILES 003 - MASKS OF TIME / EMPTY SHELL v5
 The Counterfeit Ian Ackley Project - WCIA 90.7 FM
 
 FILES THIS GAME NEEDS IN THE SAME FOLDER
 index.html          this file
 questions.js        hard question bank (your 500-question file)
-questions-easy.js   easy question bank (optional - see note below)
+questions-easy.js   easy question bank (optional)
 Song.mp3            the music track - rename in CONFIG if yours differs
 
-You do NOT need a separate gamepad.js any more. Controller support is
-built into this file.
+Controller support is built in. No separate gamepad.js needed.
 
 DIFFICULTIES
 CLEAN SIGNAL      easy bank
 MIXED SIGNAL      easy and hard banks shuffled together
 DEGRADED SIGNAL   hard bank
-
-If questions-easy.js is missing, the easy and mixed modes fall back to
-the hard bank instead of crashing, and the status line says so.
+If questions-easy.js is missing, easy and mixed fall back to the hard
+bank instead of crashing, and the status line says so.
 
 CONTROLLER
-D-pad up/down, or left/right   move the highlight
+D-pad up/down or left/right    move the highlight
 Left stick up/down             move the highlight
 Cross / A                      select
 Square / X                     select
@@ -37,30 +35,25 @@ Arrow keys                     move the highlight
 Spacebar or Enter              select
 Number keys 1-4                answer directly
 
-Both Cross and Square select, so "X" works whether you are on a
-PlayStation pad (X is the bottom button) or an Xbox pad (X is the
-left button).
-
 FIXED IN v4
 1. THE FREEZE. nextQuestion() never reset nextMode, so after the first
    ADVANCE THE TAPE press the CONTINUE button stayed stuck in "advance"
-   mode. Every later press skipped a whole program, prog ran to 3,
+   mode. Later presses skipped whole programs, prog ran to 3,
    showMan(order[3]) read a colour that does not exist, and the script
-   died on undefined.name. That is why it locked up around the second
-   or third question with the second man. nextMode is now reset for
-   every question.
-2. ADJUST TRACKING was refilling every question instead of once per
-   program, because trackingUsed was reset inside nextQuestion(). It is
-   now reset in startProgram() only, and the button shows TRACKING USED
-   for the rest of that program.
-3. Missing EASY_QUESTIONS no longer throws. It falls back to the hard
-   bank and reports it.
-4. Questions with a missing tier or cat field no longer blank the meta
-   line.
-5. TELLSPLAYER was defined but never used. The v2 behaviour is back:
-   on a clean third program the tape stops describing them and starts
-   describing you.
+   died on undefined.name. nextMode is now reset for every question.
+2. ADJUST TRACKING refilled every question instead of once per program.
+3. Missing EASY_QUESTIONS no longer throws.
+4. Questions with a missing tier or cat field no longer blank the meta.
+5. TELLSPLAYER was defined but never used. The v2 behaviour is back.
 6. Controller and keyboard navigation with a visible highlight.
+
+NEW IN v5
+7. OPEN THE FEED is back on the ending screen, on BOTH endings, win and
+   lose. It existed in v2 and was dropped in v3. Each ending now gives
+   its own in-story reason to click, and the button label changes to
+   match. The link lives in ONE place, the FEEDURL line in CONFIG.
+   Set FEEDURL to "" and the button hides itself automatically.
+   Nothing else in the game logic was touched to add it.
 -->
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
@@ -139,6 +132,10 @@ html,body{height:100%;width:100%;overflow:hidden;background:#0a0906;color:#c9bda
 .bad{color:#d0453a}
 .low{color:#7a7062;font-size:11px}
 .enote hr{border:none;border-top:1px solid #1e1a15;margin:12px 0}
+.feed{display:none;width:100%;margin-top:14px;padding:15px 11px;background:#ffc45c;color:#1a1206;border:none;border-radius:2px;font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:1px;text-align:center;text-decoration:none;touch-action:manipulation}
+.feed.on{display:block}
+.feed:active{background:#e0a842}
+.feedwhy{color:#8a6a3a;font-size:9px;letter-spacing:1px;line-height:1.6;text-align:center;margin-top:12px}
 .again{display:block;width:100%;margin-top:9px;padding:12px;background:transparent;border:1px solid #2a2119;color:#6a6055;font-family:inherit;font-size:10px;letter-spacing:2px;border-radius:2px;touch-action:manipulation}
 .efoot{color:#3a352c;font-size:7px;letter-spacing:2px;text-align:center;margin-top:12px;line-height:1.7}
 .gp-sel{outline:2px solid #ffc45c !important;outline-offset:1px;box-shadow:0 0 12px rgba(255,196,92,.35) !important}
@@ -156,12 +153,13 @@ html,body{height:100%;width:100%;overflow:hidden;background:#0a0906;color:#c9bda
 <div id="padbadge"></div>
 <div id="boot" class="scr on"><div id="bootin"><div class="btitle">MASKS OF TIME</div><div class="bsub">EMPTY SHELL &mdash; GAMING FILES 003</div><div class="bbody">An 8-track came out of the station with no case and no label. Four programs. One continuous loop. <em>No rewind.</em><br><br>Three men are on the tape. Each one answers to Ian Ackley. Two of them are not him.</div><div class="bwarn">Choose a tape condition. A cleaner signal has easier questions and clearer evidence. A degraded signal has a deeper, stranger question bank.</div><button class="modebtn" data-mode="easy"><strong>CLEAN SIGNAL &mdash; EASY</strong><span>Familiar questions. Clearer tape notes.</span></button><button class="modebtn" data-mode="mixed"><strong>MIXED SIGNAL &mdash; NORMAL</strong><span>Easy and hard questions pulled at random.</span></button><button class="modebtn" data-mode="hard"><strong>DEGRADED SIGNAL &mdash; HARD</strong><span>Obscure facts, folklore and difficult evidence.</span></button><button class="bigbtn" id="playbtn">LOAD TAPE</button><div class="bstat" id="bstat">SELECT A SIGNAL FIRST</div></div></div>
 <div id="pick" class="scr"><div id="pickin"><div id="ptitle">WHO WERE YOU BEFORE</div><div id="psub">PROGRAM 4 &mdash; IDENTIFY IAN ACKLEY</div><div id="recap"></div><button class="pickbtn" id="pkG"><span class="sw" style="background:#4f8a5f"></span>THE ONE IN GREEN</button><button class="pickbtn" id="pkR"><span class="sw" style="background:#d0453a"></span>THE ONE IN RED</button><button class="pickbtn" id="pkB"><span class="sw" style="background:#4a7ad0"></span>THE ONE IN BLUE</button></div></div>
-<div id="end" class="scr"><div id="endin"><div id="etitle">&nbsp;</div><div class="enote" id="enote"></div><button class="again" id="again">REWIND IS NOT POSSIBLE &mdash; PLAY THE TAPE AGAIN</button><div class="efoot">GAMING FILES 003 &mdash; STATUS HAUNTED<br>SIGNAL STILL TRANSMITTING</div></div></div>
+<div id="end" class="scr"><div id="endin"><div id="etitle">&nbsp;</div><div class="enote" id="enote"></div><div class="feedwhy" id="feedwhy">&nbsp;</div><a class="feed" id="feed" href="#" target="_blank" rel="noopener">OPEN THE FEED</a><button class="again" id="again">REWIND IS NOT POSSIBLE &mdash; PLAY THE TAPE AGAIN</button><div class="efoot">GAMING FILES 003 &mdash; STATUS HAUNTED<br>SIGNAL STILL TRANSMITTING</div></div></div>
 <script src="questions-easy.js"></script>
 <script src="questions.js"></script>
 <script>
 /* ================= CONFIG ================= */
 var SONGFILE="Song.mp3";
+var FEEDURL="https://www.youtube.com/@x-ackley";   /* your channel - change this one line only. "" hides the button */
 var QPERPROGRAM=5, PASSMARK=3;
 var COLS={green:{name:"GREEN",hex:"#4f8a5f",shirt:"#2f4a34"},red:{name:"RED",hex:"#d0453a",shirt:"#4a2420"},blue:{name:"BLUE",hex:"#4a7ad0",shirt:"#22304a"}};
 
@@ -172,10 +170,13 @@ var TELLSPLAYER=["you did not fog the glass either.","you have not once said you
 
 /* ================= HELPERS ================= */
 var el=function(id){return document.getElementById(id)};
-var elL=[el("L1"),el("L2"),el("L3"),el("L4")],elmeterf=el("meterf"),elwho=el("who"),elwhosub=el("whosub"),eltorso=el("torso"),elglare=el("glare"),eltell=el("tell"),eltellwarn=el("tellwarn"),elqnum=el("qnum"),elqtier=el("qtier"),elq=el("q"),elopts=el("opts"),elnote=el("note"),elnext=el("next"),eltracking=el("tracking"),elstreak=el("streak"),elbstat=el("bstat");
+var elL=[el("L1"),el("L2"),el("L3"),el("L4")],elmeterf=el("meterf"),elwho=el("who"),elwhosub=el("whosub"),eltorso=el("torso"),elglare=el("glare"),eltell=el("tell"),eltellwarn=el("tellwarn"),elqnum=el("qnum"),elqtier=el("qtier"),elq=el("q"),elopts=el("opts"),elnote=el("note"),elnext=el("next"),eltracking=el("tracking"),elstreak=el("streak"),elbstat=el("bstat"),elfeed=el("feed"),elfeedwhy=el("feedwhy");
 function shuffle(a){var b=a.slice(),i,j,t;for(i=b.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=b[i];b[i]=b[j];b[j]=t}return b}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function stat(t){elbstat.textContent=t}
+
+/* wire the feed link once, at boot */
+if(FEEDURL){elfeed.setAttribute("href",FEEDURL)}
 
 /* ================= AUDIO ================= */
 var AC=null,master=null,musicG=null,sfxG=null,noiseBuf=null,trackEl=null,srcNode=null,songStarted=false,hissGain=null;
@@ -186,8 +187,6 @@ function blip(f,d,v){if(!AC)return;var o=AC.createOscillator(),g=AC.createGain()
 function rightSound(){blip(784,.1,.18);setTimeout(function(){blip(1047,.12,.15)},85)}
 function wrongSound(){blip(190,.28,.2)}
 function clunk(){blip(120,.1,.18)}
-
-/* a real tap or keypress anywhere will start blocked audio */
 function rescueAudio(){if(AC&&trackEl&&!songStarted)startAudio()}
 document.addEventListener("pointerdown",rescueAudio);
 document.addEventListener("keydown",rescueAudio);
@@ -195,12 +194,10 @@ document.addEventListener("keydown",rescueAudio);
 /* ================= STATE ================= */
 var difficulty=null,ACTIVE_QUESTIONS=[],order=[],humanCol=null,prog=0,qi=0,correct=0,streak=0,maxStreak=0,trackingUsed=false,curQ=null,curOpts=[],answered=false,results=[],usedQ=[],nextMode="question",cleanRun=true;
 
-function bank(name){
-  try{ var b=window[name]; return (b&&b.length)?b:null; }catch(e){ return null; }
-}
+function bank(name){try{var b=window[name];return (b&&b.length)?b:null}catch(e){return null}}
 function selectDifficulty(mode){
-  var easy=bank("EASY_QUESTIONS"), hard=bank("QUESTIONS"), warn="";
-  if(!hard&&!easy){ stat("NO QUESTION BANK FOUND - CHECK questions.js"); return }
+  var easy=bank("EASY_QUESTIONS"),hard=bank("QUESTIONS"),warn="";
+  if(!hard&&!easy){stat("NO QUESTION BANK FOUND - CHECK questions.js");return}
   if(mode==="easy"){
     if(easy)ACTIVE_QUESTIONS=easy.slice();
     else{ACTIVE_QUESTIONS=hard.slice();warn=" (NO EASY BANK - USING HARD)"}
@@ -215,18 +212,12 @@ function selectDifficulty(mode){
   var labels={easy:"CLEAN SIGNAL LOADED",mixed:"MIXED SIGNAL LOADED",hard:"DEGRADED SIGNAL LOADED"};
   stat(labels[mode]+warn+" - "+ACTIVE_QUESTIONS.length+" QUESTIONS - PRESS LOAD TAPE");
   var mb=document.querySelectorAll(".modebtn"),i;
-  for(i=0;i<mb.length;i++){
-    mb[i].className=(mb[i].getAttribute("data-mode")===mode)?"modebtn chosen":"modebtn";
-  }
+  for(i=0;i<mb.length;i++)mb[i].className=(mb[i].getAttribute("data-mode")===mode)?"modebtn chosen":"modebtn";
 }
 
 function newRun(){order=shuffle(["green","red","blue"]);humanCol=pick(["green","red","blue"]);prog=0;qi=0;correct=0;streak=0;maxStreak=0;trackingUsed=false;results=[];usedQ=[];cleanRun=true;nextMode="question";for(var i=0;i<4;i++)elL[i].className="lamp";elmeterf.style.width="0"}
 function updateStreak(){var bars="",i;for(i=0;i<5;i++)bars+=(i<streak?"\u2588":"\u2591");elstreak.textContent="SIGNAL LOCK: "+bars+" "+streak}
-
-function paintTracking(){
-  if(trackingUsed){eltracking.className="on used";eltracking.textContent="TRACKING USED THIS PROGRAM"}
-  else{eltracking.className="on";eltracking.textContent="ADJUST TRACKING - CLEAR 2 WRONG"}
-}
+function paintTracking(){if(trackingUsed){eltracking.className="on used";eltracking.textContent="TRACKING USED THIS PROGRAM"}else{eltracking.className="on";eltracking.textContent="ADJUST TRACKING - CLEAR 2 WRONG"}}
 
 function nextQuestion(){
   if(!ACTIVE_QUESTIONS.length)return;
@@ -300,12 +291,12 @@ function showMan(col){
 }
 
 function startProgram(){
-  if(prog>2){goPick();return}          /* safety net - never index past the third man */
+  if(prog>2){goPick();return}
   elL[prog].className="lamp on";
   clunk();
   showMan(order[prog]);
   qi=0;correct=0;streak=0;maxStreak=0;
-  trackingUsed=false;                  /* v4 FIX - one lifeline per program */
+  trackingUsed=false;
   el("reel").textContent="PROGRAM "+(prog+1)+" OF 4 - "+String(difficulty||"").toUpperCase()+" SIGNAL";
   nextQuestion();
 }
@@ -321,7 +312,6 @@ function endProgram(){
     var target=Math.random()<.48?col:pick(["green","red","blue"].filter(function(x){return x!==col}));
     text=(target===humanCol?pick(TELLSFALSE):pick(TELLSHUMAN)).replace("COLOR",COLS[target].name);
   }
-  /* v4 - restored from v2: a clean third program turns the tape on the player */
   if(prog===2&&cleanRun&&passed)text+="<br><span class='hot'>AND</span> "+pick(TELLSPLAYER);
   results.push({col:col,passed:passed,text:text,score:correct,maxStreak:maxStreak});
   eltell.innerHTML="<span class='hot'>TAPE NOTE</span><br>"+text;
@@ -364,14 +354,27 @@ el("pkG").addEventListener("click",function(){choose("green")});
 el("pkR").addEventListener("click",function(){choose("red")});
 el("pkB").addEventListener("click",function(){choose("blue")});
 
+/* ================= ENDINGS ================= */
 function showEnd(won,chosen){
-  var t=el("etitle"),n=el("enote"),hc=COLS[humanCol].name,cc=COLS[chosen].name;
+  var t=el("etitle"),n=el("enote"),hc=COLS[humanCol].name,cc=COLS[chosen].name,why,label;
   if(won){
     t.textContent="SIGNAL HELD";t.style.color="#4f8a5f";
     n.innerHTML="<p><span class='hot'>TRANSMISSION - WCIA 90.7 FM</span></p><p>You picked <span class='hot'>"+cc+"</span>. It was <span class='hot'>"+hc+"</span>. You got him out.</p><hr><p>He says the tape came under the door like all the others. He recorded over it because it was the only blank he had. The two who used his name have gone quiet. Not deleted. Quiet.</p><p class='low'>Together you stopped them. That is what the note says. He wrote it himself, so you can decide how much of it to keep.</p><hr><p><span class='hot'>Who were you before you started answering?</span></p>";
+    why="The station is still on air. He is still in the room. Watch the feed and decide for yourself which one is talking.";
+    label="OPEN THE FEED \u2014 WCIA 90.7 FM";
   } else {
     t.textContent="EMPTY SHELL";t.style.color="#d0453a";
     n.innerHTML="<p><span class='bad'>TRANSMISSION - WCIA 90.7 FM</span></p><p>You picked <span class='bad'>"+cc+"</span>. The human was <span class='hot'>"+hc+"</span>. You handed them the wrong man and they thanked you for it.</p><hr><p>The tape does not stop. It clunks to program one and begins again. One of them gives the year, the month and the day without pausing. One of them never says he is not sure. <span class='bad'>One of them answers exactly the way you did.</span></p><p class='low'>The hollow one keeps walking where the real one used to stand.</p><hr><p><span class='hot'>Who were you before you started answering?</span></p>";
+    why="The real one is still transmitting from somewhere. The feed is the only place he comes through unedited. Hear him before they finish learning him.";
+    label="FIND THE REAL SIGNAL";
+  }
+  if(FEEDURL){
+    elfeedwhy.textContent=why;
+    elfeed.textContent="\u25B8 "+label;
+    elfeed.className="feed on";
+  } else {
+    elfeedwhy.innerHTML="&nbsp;";
+    elfeed.className="feed";
   }
   el("end").className="scr on";
 }
@@ -396,12 +399,10 @@ el("playbtn").addEventListener("click",function(){
   var idx=0,sig="",active=[],prev={},lastAxis=0;
   var AXIS_DEAD=.55,AXIS_REPEAT=170;
   var badge=el("padbadge");
-
   function flash(m,ms){badge.textContent=m;setTimeout(function(){if(badge.textContent===m)badge.textContent=""},ms||3500)}
   function isOn(id){var e=el(id);return !!e&&e.className.indexOf("on")>=0}
   function usable(e){return !!e&&!e.disabled&&e.offsetParent!==null}
   function clean(cn){return (cn||"").replace(/\s*gp-sel/g,"")}
-
   function collect(){
     var out=[],i,list;
     function add(e){if(usable(e))out.push(e)}
@@ -412,6 +413,7 @@ el("playbtn").addEventListener("click",function(){
     } else if(isOn("pick")){
       add(el("pkG"));add(el("pkR"));add(el("pkB"));
     } else if(isOn("end")){
+      if(elfeed.className.indexOf("on")>=0)add(elfeed);
       add(el("again"));
     } else {
       list=elopts.getElementsByClassName("opt");
@@ -421,16 +423,13 @@ el("playbtn").addEventListener("click",function(){
     }
     return out;
   }
-
   function signature(l){var p=[],i;for(i=0;i<l.length;i++)p.push((l[i].id||"")+"/"+clean(l[i].className)+"/"+(l[i].textContent||"").slice(0,18));return p.join("~")}
   function paint(){var i,base;for(i=0;i<active.length;i++){base=clean(active[i].className);active[i].className=(i===idx)?(base+" gp-sel"):base}}
   function move(d){if(!active.length)return;idx=(idx+d+active.length)%active.length;paint()}
   function fire(){if(!active.length)return;var e=active[idx];if(usable(e))e.click()}
   function refresh(){var l=collect(),s=signature(l);active=l;if(s!==sig){sig=s;if(idx>=active.length)idx=0;paint()}}
-
   function down(gp,i){var b=gp.buttons[i];if(!b)return false;return b.pressed===true||(typeof b==="number"?b>.5:b.value>.5)}
   function edge(gp,i,fn){var now=down(gp,i),was=prev[i]===true;if(now&&!was)fn();prev[i]=now}
-
   function readPad(){
     if(!navigator.getGamepads)return;
     var pads,gp=null,i;
@@ -442,15 +441,13 @@ el("playbtn").addEventListener("click",function(){
     edge(gp,14,function(){move(-1)});
     edge(gp,13,function(){move(1)});
     edge(gp,15,function(){move(1)});
-    edge(gp,0,fire);   /* Cross on PlayStation, A on Xbox */
-    edge(gp,2,fire);   /* Square on PlayStation, X on Xbox */
-    edge(gp,9,fire);   /* Options / Start */
+    edge(gp,0,fire);
+    edge(gp,2,fire);
+    edge(gp,9,fire);
     var y=(gp.axes&&gp.axes.length>1)?(gp.axes[1]||0):0,t=Date.now();
     if(Math.abs(y)>AXIS_DEAD&&t-lastAxis>AXIS_REPEAT){lastAxis=t;move(y>0?1:-1)}
   }
-
   function loop(){refresh();readPad();requestAnimationFrame(loop)}
-
   document.addEventListener("keydown",function(e){
     var k=e.key;
     if(k==="ArrowUp"||k==="ArrowLeft"){e.preventDefault();move(-1);return}
@@ -459,10 +456,8 @@ el("playbtn").addEventListener("click",function(){
     if(k>="1"&&k<="4"){var a=elopts.getElementsByClassName("opt"),i=parseInt(k,10)-1;if(a[i]&&!a[i].disabled)a[i].click();return}
     if(k==="Enter"){e.preventDefault();fire()}
   });
-
   window.addEventListener("gamepadconnected",function(){flash("CONTROLLER LINKED - D-PAD TO MOVE, X TO SELECT",4500)});
   window.addEventListener("gamepaddisconnected",function(){prev={};flash("CONTROLLER LOST",2500)});
-
   loop();
 })();
 </script>
