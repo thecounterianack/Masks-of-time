@@ -1,630 +1,100 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>MASKS OF TIME &mdash; EMPTY SHELL</title>
+<title>MASKS OF TIME — EMPTY SHELL</title>
 <!--
- =====================================================================
- GAMING FILES 003 - MASKS OF TIME / EMPTY SHELL          v2
- The Counterfeit Ian Ackley Project - WCIA 90.7 FM
+GAMING FILES 003 — MASKS OF TIME / EMPTY SHELL v3
+The Counterfeit Ian Ackley Project — WCIA 90.7 FM
 
- FILES THIS GAME NEEDS, ALL IN THE SAME FOLDER
-   index.html      this file
-   questions.js    the question bank (separate file, grow it freely)
-   Song.mp3        the track - rename in CONFIG below if yours differs
+FILES THIS GAME NEEDS IN THE SAME FOLDER
+index.html          this file
+questions-easy.js   easy question bank
+questions.js        hard question bank (your existing 500-question file)
+Song.mp3            the music track — rename in CONFIG if yours differs
 
- HOW IT PLAYS
-   An 8-track recovered from the station. Four programs, one endless
-   loop, no rewind. Three men are on it. Each answers to Ian Ackley.
-   Two are not him.
+DIFFICULTIES
+CLEAN SIGNAL      easy bank
+MIXED SIGNAL      randomized mix of easy and hard banks
+DEGRADED SIGNAL   hard bank
 
-   PROGRAM 1/2/3   one man each, five questions each
-   PROGRAM 4       the choice - name the human
-
-   Pass a program (3 of 5) and the tape note about that man is TRUE.
-   Fail and you still get a note, but it may name the wrong shirt,
-   may invert what it claims, or both. It reads identically either
-   way. You are never told which you got.
-
- WHAT RANDOMISES EVERY RUN
-   which colour is human, the order the shirts appear, which
-   questions are drawn, which on-screen option is correct, which
-   observation template fires, and where a lie points.
-
- v2 CHANGES
-   - "WHO WERE YOU BEFORE" is now the choice-screen title card.
-   - The final tape note of a clean run turns on the player.
-   - Lose ending rewritten: the empty shell is the player.
-   - buildDeck() no-op sort removed (it did nothing).
-   - Continue button now uses a state flag, not button text
-     comparison, which was fragile.
-   - Question pool guards against a bank smaller than 15.
-
- AUDIO NOTE
-   Do NOT set crossOrigin on the audio element. It taints the media
-   element source and the graph outputs silence.
- =====================================================================
+Each program: answer five questions. Three correct clears it.
+One ADJUST TRACKING lifeline per program removes two wrong answers.
+A three-answer streak gives a stronger tape note. Five correct unlocks
+an extra signal fragment. All questions and evidence remain randomized.
 -->
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-html,body{height:100%;width:100%;overflow:hidden;background:#0a0906;position:fixed;font-family:ui-monospace,"SF Mono",Menlo,monospace}
-
-#stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 10px);overflow-y:auto}
-#grain{position:absolute;inset:0;pointer-events:none;z-index:60;opacity:.055;background:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px)}
-#warm{position:absolute;inset:0;pointer-events:none;z-index:59;background:radial-gradient(ellipse at 50% 42%,rgba(255,196,92,.05) 0%,rgba(0,0,0,.72) 100%)}
-
-#deck{width:100%;max-width:360px;border:1px solid #2a2119;border-radius:5px;background:linear-gradient(180deg,#171310,#0e0b09);padding:12px 12px 14px;box-shadow:0 10px 26px rgba(0,0,0,.7);flex-shrink:0}
-#brand{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
-#bl{color:#8a6a3a;font-size:8px;letter-spacing:3px}
-#br{color:#4a3c2a;font-size:7px;letter-spacing:2px}
-#lamps{display:flex;gap:6px;margin-bottom:10px}
-.lamp{flex:1;height:16px;border:1px solid #2a2119;border-radius:2px;background:#120e0b;display:flex;align-items:center;justify-content:center;color:#3a2f22;font-size:8px;letter-spacing:1px}
-.lamp.on{background:#3a2a10;border-color:#8a6a3a;color:#ffc45c;box-shadow:0 0 9px rgba(255,196,92,.28)}
-.lamp.done{border-color:#2f4a34;color:#4f8a5f}
-#meter{height:5px;background:#120e0b;border:1px solid #2a2119;margin-bottom:10px;overflow:hidden}
-#meterf{height:100%;width:0%;background:linear-gradient(90deg,#4f8a5f,#ffc45c,#d0453a)}
-#reel{color:#5a4830;font-size:7.5px;letter-spacing:2px;text-align:center}
-
-#chair{width:100%;max-width:360px;margin-top:12px;border:1px solid #1e1a15;background:#0c0a08;padding:14px 12px;position:relative;flex-shrink:0}
-#chair:before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 4px)}
-#who{font-size:9px;letter-spacing:3px;text-align:center;margin-bottom:2px}
-#whosub{color:#4a4238;font-size:7px;letter-spacing:2px;text-align:center;margin-bottom:11px}
-#figure{height:96px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:10px}
-#figbox{width:78px;height:88px;position:relative}
-.head{position:absolute;left:23px;top:0;width:32px;height:30px;background:#2a231c;border-radius:3px}
-.eye{position:absolute;top:12px;width:5px;height:3px;background:#0a0906}
-.eyeL{left:29px}.eyeR{left:44px}
-.glare{position:absolute;top:12px;left:30px;width:2px;height:2px;background:#fff;opacity:.85}
-.torso{position:absolute;left:14px;top:31px;width:50px;height:44px;border-radius:2px}
-.arm{position:absolute;top:34px;width:9px;height:36px;background:#221c16}
-.armL{left:5px}.armR{left:64px}
-#tellbox{border-top:1px solid #1e1a15;padding-top:10px;min-height:34px}
-#tell{color:#c9bda8;font-size:10.5px;line-height:1.55;text-align:center}
-#tellwarn{color:#5a4830;font-size:7px;letter-spacing:2px;text-align:center;margin-top:6px}
-
-#qwrap{width:100%;max-width:360px;margin-top:12px;flex-shrink:0}
-#qmeta{display:flex;justify-content:space-between;color:#4a4238;font-size:7.5px;letter-spacing:2px;margin-bottom:7px}
-#qtier{color:#5a4830}
-#q{color:#e2d8c4;font-size:12.5px;line-height:1.55;margin-bottom:11px;min-height:38px}
-.opt{display:block;width:100%;margin-bottom:7px;padding:12px 11px;background:#100d0a;border:1px solid #2a2119;color:#c9bda8;font-family:inherit;font-size:11.5px;text-align:left;line-height:1.4;border-radius:2px;touch-action:manipulation}
-.opt:active{background:#1a1510}
-.opt.right{border-color:#4f8a5f;color:#7fd89a;background:#0e1610}
-.opt.wrong{border-color:#d0453a;color:#e07a70;background:#170d0c}
-.opt.dim{opacity:.4}
-#note{color:#7a7062;font-size:10px;line-height:1.5;margin-top:4px;min-height:26px}
-#next{display:none;width:100%;margin-top:8px;padding:13px;background:#ffc45c;color:#1a1206;border:none;font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:2px;border-radius:2px;touch-action:manipulation}
-#next.on{display:block}
-
-.scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);z-index:40;overflow-y:auto;background:#0a0906}
-.scr.on{display:flex}
-#bootin,#pickin,#endin{width:100%;max-width:360px;margin:auto 0}
-#btitle{color:#ffc45c;font-size:15px;letter-spacing:5px;text-align:center;margin-bottom:3px}
-#bsub{color:#8a6a3a;font-size:8.5px;letter-spacing:3px;text-align:center;margin-bottom:16px}
-#bbody{color:#9a9080;font-size:11px;line-height:1.7;margin-bottom:14px}
-#bbody em{color:#ffc45c;font-style:normal}
-#bwarn{color:#d0453a;font-size:9.5px;line-height:1.6;margin-bottom:16px;border-left:2px solid #3a1a16;padding-left:9px}
-.bigbtn{display:block;width:100%;padding:16px;background:#ffc45c;color:#1a1206;border:none;font-family:inherit;font-size:12.5px;font-weight:700;letter-spacing:2px;border-radius:2px;touch-action:manipulation}
-#bstat{color:#4f8a5f;font-size:7.5px;letter-spacing:2px;text-align:center;margin-top:10px;min-height:10px}
-
-#ptitle{color:#ffc45c;font-size:14px;letter-spacing:4px;text-align:center;margin-bottom:4px}
-#psub{color:#6a6055;font-size:8px;letter-spacing:2px;text-align:center;margin-bottom:14px}
-#recap{border-top:1px solid #1e1a15;border-bottom:1px solid #1e1a15;padding:10px 0;margin-bottom:14px}
-.rl{color:#9a9080;font-size:10px;line-height:1.5;margin-bottom:8px;padding-left:9px;border-left:2px solid #2a2119}
-.rl:last-child{margin-bottom:0}
-.rl b{font-weight:400}
-.pickbtn{display:block;width:100%;margin-bottom:9px;padding:15px 11px;background:#100d0a;border:2px solid #2a2119;color:#c9bda8;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:2px;text-align:left;touch-action:manipulation}
-.sw{display:inline-block;width:11px;height:11px;margin-right:9px;vertical-align:-1px;border-radius:2px}
-
-#etitle{font-size:14px;letter-spacing:4px;text-align:center;margin-bottom:12px}
-#enote{border:2px solid #2a2119;background:#0c0a08;padding:15px 13px;color:#c9bda8;font-size:11.5px;line-height:1.68}
-#enote p{margin-bottom:10px}
-#enote p:last-child{margin-bottom:0}
-#enote .hot{color:#ffc45c}
-#enote .bad{color:#d0453a}
-#enote .low{color:#7a7062;font-size:11px}
-#enote hr{border:none;border-top:1px solid #1e1a15;margin:12px 0}
-#feed{display:block;margin-top:14px;padding:15px 11px;text-align:center;font-weight:700;font-size:12.5px;letter-spacing:1px;text-decoration:none;border:none;border-radius:2px;background:#ffc45c;color:#1a1206}
-#again{display:block;width:100%;margin-top:9px;padding:12px;background:transparent;border:1px solid #2a2119;color:#6a6055;font-family:inherit;font-size:10px;letter-spacing:2px;border-radius:2px;touch-action:manipulation}
-#efoot{color:#3a352c;font-size:7px;letter-spacing:2px;text-align:center;margin-top:12px;line-height:1.7}
+html,body{height:100%;width:100%;overflow:hidden;background:#0a0906;color:#c9bda8;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+#stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 10px);overflow-y:auto}
+#grain{position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.05;background:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px)}
+#warm{position:fixed;inset:0;pointer-events:none;z-index:59;background:radial-gradient(ellipse at 50% 42%,rgba(255,196,92,.05),rgba(0,0,0,.72) 100%)}
+#deck{width:100%;max-width:390px;border:1px solid #2a2119;border-radius:5px;background:linear-gradient(180deg,#171310,#0e0b09);padding:12px 12px 14px;box-shadow:0 10px 26px rgba(0,0,0,.7);flex-shrink:0}
+#brand{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}#bl{color:#8a6a3a;font-size:8px;letter-spacing:3px}#br{color:#4a3c2a;font-size:7px;letter-spacing:2px}
+#lamps{display:flex;gap:6px;margin-bottom:10px}.lamp{flex:1;height:16px;border:1px solid #2a2119;border-radius:2px;background:#120e0b;display:flex;align-items:center;justify-content:center;color:#3a2f22;font-size:8px;letter-spacing:1px}.lamp.on{background:#3a2a10;border-color:#8a6a3a;color:#ffc45c;box-shadow:0 0 9px rgba(255,196,92,.28)}.lamp.done{border-color:#2f4a34;color:#4f8a5f}
+#meter{height:5px;background:#120e0b;border:1px solid #2a2119;margin-bottom:10px;overflow:hidden}#meterf{height:100%;width:0;background:linear-gradient(90deg,#4f8a5f,#ffc45c,#d0453a)}#reel{color:#5a4830;font-size:7.5px;letter-spacing:2px;text-align:center}
+#chair{width:100%;max-width:390px;margin-top:12px;border:1px solid #1e1a15;background:#0c0a08;padding:14px 12px;position:relative;flex-shrink:0}#chair:before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 4px)}
+#who{font-size:9px;letter-spacing:3px;text-align:center;margin-bottom:2px}#whosub{color:#4a4238;font-size:7px;letter-spacing:2px;text-align:center;margin-bottom:11px}#figure{height:96px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:10px}#figbox{width:78px;height:88px;position:relative}.head{position:absolute;left:23px;top:0;width:32px;height:30px;background:#2a231c;border-radius:3px}.eye{position:absolute;top:12px;width:5px;height:3px;background:#0a0906}.eyeL{left:29px}.eyeR{left:44px}.glare{position:absolute;top:12px;left:30px;width:2px;height:2px;background:#fff;opacity:.85}.torso{position:absolute;left:14px;top:31px;width:50px;height:44px;border-radius:2px}.arm{position:absolute;top:34px;width:9px;height:36px;background:#221c16}.armL{left:5px}.armR{left:64px}#tellbox{border-top:1px solid #1e1a15;padding-top:10px;min-height:44px}#tell{color:#c9bda8;font-size:10.5px;line-height:1.55;text-align:center}#tellwarn{color:#5a4830;font-size:7px;letter-spacing:2px;text-align:center;margin-top:6px}
+#qwrap{width:100%;max-width:390px;margin-top:12px;flex-shrink:0}#qmeta{display:flex;justify-content:space-between;color:#4a4238;font-size:7.5px;letter-spacing:2px;margin-bottom:7px}#qtier{color:#5a4830}#q{color:#e2d8c4;font-size:12.5px;line-height:1.55;margin-bottom:11px;min-height:38px}.opt{display:block;width:100%;margin-bottom:7px;padding:12px 11px;background:#100d0a;border:1px solid #2a2119;color:#c9bda8;font-family:inherit;font-size:11.5px;text-align:left;line-height:1.4;border-radius:2px;touch-action:manipulation}.opt:active{background:#1a1510}.opt.right{border-color:#4f8a5f;color:#7fd89a;background:#0e1610}.opt.wrong{border-color:#d0453a;color:#e07a70;background:#170d0c}.opt.dim{opacity:.38}#note{color:#7a7062;font-size:10px;line-height:1.5;margin-top:4px;min-height:26px}
+#tools{display:flex;gap:7px;margin-top:8px}#tracking{display:none;flex:1;padding:11px 8px;background:#1a1510;border:1px solid #8a6a3a;color:#ffc45c;font-family:inherit;font-size:8px;letter-spacing:1px;border-radius:2px;touch-action:manipulation}#tracking.on{display:block}#tracking.used{border-color:#2a2119;color:#4a4238;background:#100d0a}#streak{flex:1;padding:11px 8px;border:1px solid #2a2119;color:#5a4830;font-size:8px;letter-spacing:1px;text-align:center}
+#next{display:none;width:100%;margin-top:8px;padding:13px;background:#ffc45c;color:#1a1206;border:none;font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:2px;border-radius:2px;touch-action:manipulation}#next.on{display:block}
+.scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);z-index:40;overflow-y:auto;background:#0a0906}.scr.on{display:flex}#bootin,#pickin,#endin{width:100%;max-width:390px;margin:auto 0}.btitle,#ptitle,#etitle{color:#ffc45c;font-size:14px;letter-spacing:4px;text-align:center;margin-bottom:4px}.bsub,#psub{color:#8a6a3a;font-size:8.5px;letter-spacing:2px;text-align:center;margin-bottom:16px}.bbody{color:#9a9080;font-size:11px;line-height:1.7;margin-bottom:14px}.bbody em{color:#ffc45c;font-style:normal}.bwarn{color:#d0453a;font-size:9.5px;line-height:1.6;margin-bottom:16px;border-left:2px solid #3a1a16;padding-left:9px}.modebtn,.bigbtn{display:block;width:100%;padding:14px;background:#100d0a;border:1px solid #2a2119;color:#c9bda8;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1.5px;border-radius:2px;text-align:left;margin-bottom:8px;touch-action:manipulation}.modebtn strong{color:#ffc45c}.modebtn span{display:block;color:#6a6055;font-size:8px;font-weight:400;letter-spacing:1px;line-height:1.5;margin-top:5px}.modebtn:active{background:#1a1510}.bigbtn{margin-top:12px;background:#ffc45c;color:#1a1206;text-align:center;border:none;font-size:12.5px;letter-spacing:2px}.bstat{color:#4f8a5f;font-size:7.5px;letter-spacing:2px;text-align:center;margin-top:10px;min-height:10px}
+#recap{border-top:1px solid #1e1a15;border-bottom:1px solid #1e1a15;padding:10px 0;margin-bottom:14px}.rl{color:#9a9080;font-size:10px;line-height:1.5;margin-bottom:8px;padding-left:9px;border-left:2px solid #2a2119}.rl:last-child{margin-bottom:0}.pickbtn{display:block;width:100%;margin-bottom:9px;padding:15px 11px;background:#100d0a;border:2px solid #2a2119;color:#c9bda8;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:2px;text-align:left;touch-action:manipulation}.sw{display:inline-block;width:11px;height:11px;margin-right:9px;vertical-align:-1px;border-radius:2px}.enote{border:2px solid #2a2119;background:#0c0a08;padding:15px 13px;color:#c9bda8;font-size:11.5px;line-height:1.68}.enote p{margin-bottom:10px}.enote p:last-child{margin-bottom:0}.hot{color:#ffc45c}.bad{color:#d0453a}.low{color:#7a7062;font-size:11px}.enote hr{border:none;border-top:1px solid #1e1a15;margin:12px 0}.again{display:block;width:100%;margin-top:9px;padding:12px;background:transparent;border:1px solid #2a2119;color:#6a6055;font-family:inherit;font-size:10px;letter-spacing:2px;border-radius:2px;touch-action:manipulation}.efoot{color:#3a352c;font-size:7px;letter-spacing:2px;text-align:center;margin-top:12px;line-height:1.7}
 </style>
 </head>
 <body>
-
 <div id="stage">
-  <div id="deck">
-    <div id="brand"><div id="bl">WCIA 90.7 FM</div><div id="br">8-TRACK &mdash; DO NOT REWIND</div></div>
-    <div id="lamps">
-      <div class="lamp" id="L1">PGM 1</div>
-      <div class="lamp" id="L2">PGM 2</div>
-      <div class="lamp" id="L3">PGM 3</div>
-      <div class="lamp" id="L4">PGM 4</div>
-    </div>
-    <div id="meter"><div id="meterf"></div></div>
-    <div id="reel">GAMING FILES 003 &mdash; MASKS OF TIME</div>
-  </div>
-
-  <div id="chair">
-    <div id="who">&nbsp;</div>
-    <div id="whosub">&nbsp;</div>
-    <div id="figure"><div id="figbox">
-      <div class="head"></div>
-      <div class="eye eyeL"></div><div class="eye eyeR"></div>
-      <div class="glare" id="glare" style="display:none"></div>
-      <div class="torso" id="torso"></div>
-      <div class="arm armL"></div><div class="arm armR"></div>
-    </div></div>
-    <div id="tellbox"><div id="tell">&nbsp;</div><div id="tellwarn">&nbsp;</div></div>
-  </div>
-
-  <div id="qwrap">
-    <div id="qmeta"><span id="qnum">&nbsp;</span><span id="qtier">&nbsp;</span></div>
-    <div id="q">&nbsp;</div>
-    <div id="opts"></div>
-    <div id="note">&nbsp;</div>
-    <button id="next">CONTINUE</button>
-  </div>
+  <div id="deck"><div id="brand"><div id="bl">WCIA 90.7 FM</div><div id="br">8-TRACK — DO NOT REWIND</div></div><div id="lamps"><div class="lamp" id="L1">PGM 1</div><div class="lamp" id="L2">PGM 2</div><div class="lamp" id="L3">PGM 3</div><div class="lamp" id="L4">PGM 4</div></div><div id="meter"><div id="meterf"></div></div><div id="reel">GAMING FILES 003 — MASKS OF TIME</div></div>
+  <div id="chair"><div id="who">&nbsp;</div><div id="whosub">&nbsp;</div><div id="figure"><div id="figbox"><div class="head"></div><div class="eye eyeL"></div><div class="eye eyeR"></div><div class="glare" id="glare" style="display:none"></div><div class="torso" id="torso"></div><div class="arm armL"></div><div class="arm armR"></div></div></div><div id="tellbox"><div id="tell">&nbsp;</div><div id="tellwarn">&nbsp;</div></div></div>
+  <div id="qwrap"><div id="qmeta"><span id="qnum">&nbsp;</span><span id="qtier">&nbsp;</span></div><div id="q">&nbsp;</div><div id="opts"></div><div id="note">&nbsp;</div><div id="tools"><button id="tracking">ADJUST TRACKING</button><div id="streak">SIGNAL LOCK: —</div></div><button id="next">CONTINUE</button></div>
 </div>
-
-<div id="grain"></div>
-<div id="warm"></div>
-
-<div id="boot" class="scr on"><div id="bootin">
-  <div id="btitle">MASKS OF TIME</div>
-  <div id="bsub">EMPTY SHELL &mdash; GAMING FILES 003</div>
-  <div id="bbody">
-    An 8-track came out of the station with no case and no label.
-    Four programs. One continuous loop. <em>No rewind.</em>
-    <br><br>
-    Three men are on the tape. Each one answers to Ian Ackley.
-    Two of them are not him.
-    <br><br>
-    You get one program with each. Score well and you will notice
-    something true about the man in the chair.
-  </div>
-  <div id="bwarn">
-    Score badly and you will still notice something. It may not be true.
-    You will not be told which.
-  </div>
-  <button class="bigbtn" id="playbtn">PRESS PLAY</button>
-  <div id="bstat">&nbsp;</div>
-</div></div>
-
-<div id="pick" class="scr"><div id="pickin">
-  <div id="ptitle">WHO WERE YOU BEFORE</div>
-  <div id="psub">PROGRAM 4 &mdash; NAME THE HUMAN</div>
-  <div id="recap"></div>
-  <button class="pickbtn" id="pkG"><span class="sw" style="background:#4f8a5f"></span>THE ONE IN GREEN</button>
-  <button class="pickbtn" id="pkR"><span class="sw" style="background:#d0453a"></span>THE ONE IN RED</button>
-  <button class="pickbtn" id="pkB"><span class="sw" style="background:#4a7ad0"></span>THE ONE IN BLUE</button>
-</div></div>
-
-<div id="end" class="scr"><div id="endin">
-  <div id="etitle">&nbsp;</div>
-  <div id="enote"></div>
-  <a id="feed" href="#" target="_blank" rel="noopener">&#9654;&nbsp; OPEN THE FEED</a>
-  <button id="again">REWIND IS NOT POSSIBLE &mdash; PLAY THE TAPE AGAIN</button>
-  <div id="efoot">GAMING FILES 003 &mdash; STATUS: HAUNTED<br>SIGNAL STILL TRANSMITTING</div>
-</div></div>
-
+<div id="grain"></div><div id="warm"></div>
+<div id="boot" class="scr on"><div id="bootin"><div class="btitle">MASKS OF TIME</div><div class="bsub">EMPTY SHELL — GAMING FILES 003</div><div class="bbody">An 8-track came out of the station with no case and no label. Four programs. One continuous loop. <em>No rewind.</em><br><br>Three men are on the tape. Each one answers to Ian Ackley. Two of them are not him.</div><div class="bwarn">Choose a tape condition. A cleaner signal has easier questions and clearer evidence. A degraded signal has a deeper, stranger question bank.</div><button class="modebtn" data-mode="easy"><strong>CLEAN SIGNAL — EASY</strong><span>Familiar questions. Clearer tape notes.</span></button><button class="modebtn" data-mode="mixed"><strong>MIXED SIGNAL — NORMAL</strong><span>Easy and hard questions pulled at random.</span></button><button class="modebtn" data-mode="hard"><strong>DEGRADED SIGNAL — HARD</strong><span>Obscure facts, folklore and difficult evidence.</span></button><button class="bigbtn" id="playbtn">LOAD TAPE</button><div class="bstat" id="bstat">SELECT A SIGNAL FIRST</div></div></div>
+<div id="pick" class="scr"><div id="pickin"><div class="ptitle">WHO WERE YOU BEFORE</div><div class="psub">PROGRAM 4 — IDENTIFY IAN ACKLEY</div><div id="recap"></div><button class="pickbtn" id="pkG"><span class="sw" style="background:#4f8a5f"></span>THE ONE IN GREEN</button><button class="pickbtn" id="pkR"><span class="sw" style="background:#d0453a"></span>THE ONE IN RED</button><button class="pickbtn" id="pkB"><span class="sw" style="background:#4a7ad0"></span>THE ONE IN BLUE</button></div></div>
+<div id="end" class="scr"><div id="endin"><div class="etitle" id="etitle">&nbsp;</div><div class="enote" id="enote"></div><button class="again" id="again">REWIND IS NOT POSSIBLE — PLAY THE TAPE AGAIN</button><div class="efoot">GAMING FILES 003 — STATUS HAUNTED<br>SIGNAL STILL TRANSMITTING</div></div></div>
+<script src="questions-easy.js"></script>
 <script src="questions.js"></script>
 <script>
-(function(){
-/* ================= CONFIG ================= */
-var SONG_FILE='Song.mp3';
-var FEED_URL='https://youtube.com/@x-ackley';
-
-var Q_PER_PROGRAM=5;
-var PASS_MARK=3;
-
-var COLS={
-  green:{name:'GREEN', hex:'#4f8a5f', shirt:'#2f4a34'},
-  red:  {name:'RED',   hex:'#d0453a', shirt:'#4a2420'},
-  blue: {name:'BLUE',  hex:'#4a7ad0', shirt:'#22304a'}
-};
-
-/* one pool feeds truths and lies so they read identically */
-var TELLS_HUMAN=[
-  'the one in COLOR fogged the glass when he exhaled.',
-  'the one in COLOR flinched before the question finished.',
-  'the one in COLOR had sweat at his collar under the lamp.',
-  'the one in COLOR lost his place and had to start the sentence again.',
-  'the one in COLOR blinked out of rhythm, the way tired people do.',
-  'the one in COLOR said he was not sure, and then said it again.',
-  'the one in COLOR had a scar on the knuckle that moved when he gripped.',
-  'the one in COLOR went quiet for four seconds and did not fill it.'
-];
-var TELLS_FALSE=[
-  'the one in COLOR had a glare in the eye that stayed still when he turned.',
-  'the one in COLOR did not fog the glass, and the room was cold.',
-  'the one in COLOR blinked at a perfectly even interval.',
-  'the one in COLOR answered before the tape finished the question.',
-  'the one in COLOR gave the year, the month and the day without pausing.',
-  'the one in COLOR never once said he did not know.',
-  'the one in COLOR held the exact same posture for the whole program.',
-  'the one in COLOR corrected a detail nobody had got wrong.'
-];
-/* v2: on a clean third program the tape stops describing them */
-var TELLS_PLAYER=[
-  'you did not fog the glass either.',
-  'you have not once said you were not sure.',
-  'you answered the last four before the tape finished asking.',
-  'you have been in the chair the whole time.'
-];
-
-/* ================= AUDIO ================= */
-var AC=null,master=null,musicG=null,sfxG=null,noiseBuf=null;
-var trackEl=null,srcNode=null,songStarted=false;
-var hissGain=null;
-var bstat=document.getElementById('bstat');
-function stat(t){ if(bstat) bstat.innerHTML=t; }
-
-function initAudio(){
-  if(AC) return true;
-  var Ctx=window.AudioContext||window.webkitAudioContext;
-  if(!Ctx){ stat('AUDIO UNSUPPORTED'); return false; }
-  AC=new Ctx();
-  master=AC.createGain(); master.gain.value=0.55; master.connect(AC.destination);
-  musicG=AC.createGain(); musicG.gain.value=1.0; musicG.connect(master);
-  sfxG=AC.createGain(); sfxG.gain.value=0.42; sfxG.connect(master);
-  var n=AC.sampleRate*2; noiseBuf=AC.createBuffer(1,n,AC.sampleRate);
-  var d=noiseBuf.getChannelData(0);
-  for(var i=0;i<n;i++) d[i]=Math.random()*2-1;
-  return true;
-}
-function resumeAudio(cb){
-  if(!AC){ if(cb)cb(); return; }
-  if(AC.state==='running'){ if(cb)cb(); return; }
-  var r; try{ r=AC.resume(); }catch(e){ if(cb)cb(); return; }
-  if(r&&r.then) r.then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});
-  else setTimeout(function(){if(cb)cb();},60);
-}
-function makeTrack(){
-  if(trackEl) return;
-  trackEl=new Audio();
-  trackEl.src=SONG_FILE;
-  trackEl.loop=true;
-  trackEl.preload='auto';
-  trackEl.addEventListener('error',function(){ stat('TAPE UNREADABLE &mdash; CHECK '+SONG_FILE); });
-  trackEl.addEventListener('canplay',function(){ if(songStarted) pushPlay(); });
-  trackEl.load();
-}
-function buildChain(){
-  if(!AC||!trackEl||srcNode) return;
-  try{ srcNode=AC.createMediaElementSource(trackEl); srcNode.connect(musicG); }
-  catch(e){ srcNode=null; }
-}
-function pushPlay(){
-  if(!trackEl) return;
-  var pr; try{ pr=trackEl.play(); }catch(e){ return; }
-  if(pr&&pr.then){
-    pr.then(function(){ stat('TAPE RUNNING'); })
-      .catch(function(err){ stat('BLOCKED ('+((err&&err.name)||'?')+') &mdash; PRESS AGAIN'); });
-  } else stat('TAPE RUNNING');
-}
-function hissStart(){
-  if(!AC||!noiseBuf||hissGain) return;
-  hissGain=AC.createGain(); hissGain.gain.value=0.030; hissGain.connect(master);
-  var s=AC.createBufferSource(); s.buffer=noiseBuf; s.loop=true;
-  var hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1400;
-  var lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=7000;
-  s.connect(hp); hp.connect(lp); lp.connect(hissGain); s.start();
-}
-function blip(f,dur,type,vol,to){
-  if(!AC) return;
-  var o=AC.createOscillator(),g=AC.createGain();
-  o.type=type||'square'; o.frequency.setValueAtTime(f,AC.currentTime);
-  if(to) o.frequency.exponentialRampToValueAtTime(Math.max(30,to),AC.currentTime+dur);
-  g.gain.setValueAtTime(0.0001,AC.currentTime);
-  g.gain.exponentialRampToValueAtTime(vol||0.2,AC.currentTime+0.008);
-  g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
-  o.connect(g); g.connect(sfxG); o.start(); o.stop(AC.currentTime+dur+0.02);
-}
-function thud(dur,vol,f,type){
-  if(!AC||!noiseBuf) return;
-  var s=AC.createBufferSource(); s.buffer=noiseBuf;
-  var bq=AC.createBiquadFilter(); bq.type=type||'bandpass'; bq.frequency.value=f||500; bq.Q.value=1.0;
-  var g=AC.createGain();
-  g.gain.setValueAtTime(vol||0.3,AC.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
-  s.connect(bq); bq.connect(g); g.connect(sfxG); s.start(); s.stop(AC.currentTime+dur+0.02);
-}
-var SFX={
-  right:function(){ blip(784,0.09,'square',0.20); setTimeout(function(){blip(1047,0.13,'square',0.18);},80); },
-  wrong:function(){ blip(196,0.26,'sawtooth',0.22,110); thud(0.18,0.16,320,'lowpass'); },
-  clunk:function(){ thud(0.09,0.34,180,'lowpass');
-    setTimeout(function(){ thud(0.05,0.20,900,'bandpass'); },55);
-    setTimeout(function(){ blip(120,0.10,'triangle',0.14,70); },70); },
-  reveal:function(){ [523,466,392].forEach(function(f,i){ setTimeout(function(){blip(f,0.30,'sine',0.16);},i*180); });
-    setTimeout(function(){ thud(0.9,0.10,1600,'bandpass'); },140); },
-  win:function(){ [523,659,784,1047].forEach(function(f,i){ setTimeout(function(){blip(f,0.20,'square',0.20);},i*130); }); },
-  lose:function(){ [330,262,196,147].forEach(function(f,i){ setTimeout(function(){blip(f,0.34,'triangle',0.20);},i*190); });
-    setTimeout(function(){ thud(1.2,0.14,200,'lowpass'); },220); }
-};
-
-/* ================= HELPERS ================= */
-function shuffle(a){
-  var i,j,t;
-  for(i=a.length-1;i>0;i--){ j=Math.floor(Math.random()*(i+1)); t=a[i]; a[i]=a[j]; a[j]=t; }
-  return a;
-}
-function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
-function el(id){ return document.getElementById(id); }
-
-/* ================= STATE ================= */
-var order=[], humanCol='', prog=0, qi=0, correct=0;
-var curQ=null, curOpts=[], answered=false;
-var results=[], usedQ=[];
-var cleanRun=true;
-/* v2: explicit button mode instead of comparing button text */
-var nextMode='question';   /* question | advance | choice */
-
-function newRun(){
-  order=shuffle(['green','red','blue']);
-  humanCol=pick(['green','red','blue']);
-  prog=0; qi=0; correct=0; results=[]; usedQ=[];
-  cleanRun=true; nextMode='question';
-  el('L1').className='lamp'; el('L2').className='lamp';
-  el('L3').className='lamp'; el('L4').className='lamp';
-  el('meterf').style.width='0%';
-}
-
-function nextQuestion(){
-  /* if the bank is smaller than a full run, allow reuse rather than stall */
-  if(usedQ.length>=QUESTIONS.length) usedQ=[];
-  var q=null, tries=0;
-  while(tries<300){
-    q=QUESTIONS[Math.floor(Math.random()*QUESTIONS.length)];
-    if(usedQ.indexOf(q)<0) break;
-    tries++;
-  }
-  if(!q) q=QUESTIONS[0];
-  usedQ.push(q);
-  curQ=q;
-
-  curOpts=shuffle([0,1,2,3]);
-
-  el('qnum').textContent='Q '+(qi+1)+' / '+Q_PER_PROGRAM;
-  el('qtier').textContent=(q.tier||'').toUpperCase()+'  \u2022  '+(q.cat||'');
-  el('q').textContent=q.q;
-  el('note').innerHTML='&nbsp;';
-  el('next').className='';
-  answered=false;
-  nextMode='question';
-
-  var box=el('opts');
-  box.innerHTML='';
-  curOpts.forEach(function(oi){
-    var b=document.createElement('button');
-    b.className='opt';
-    b.textContent=q.a[oi];
-    b.addEventListener('click',function(){ answer(oi,b); });
-    box.appendChild(b);
-  });
-}
-
-function answer(oi,btn){
-  if(answered) return;
-  answered=true;
-  var right=(oi===curQ.c);
-  var all=el('opts').getElementsByClassName('opt');
-  for(var i=0;i<all.length;i++){
-    if(curOpts[i]===curQ.c) all[i].className='opt right';
-    else if(all[i]===btn) all[i].className='opt wrong';
-    else all[i].className='opt dim';
-  }
-  if(right){ correct++; SFX.right(); } else { SFX.wrong(); }
-  el('note').innerHTML=curQ.note?curQ.note:'&nbsp;';
-  el('meterf').style.width=Math.round(((prog*Q_PER_PROGRAM+qi+1)/(3*Q_PER_PROGRAM))*100)+'%';
-  el('next').className='on';
-}
-
-function showMan(col){
-  var C=COLS[col];
-  el('who').textContent='SUBJECT \u2014 SHIRT: '+C.name;
-  el('who').style.color=C.hex;
-  el('whosub').textContent='HE SAYS HIS NAME IS IAN ACKLEY';
-  el('torso').style.background=C.shirt;
-  el('glare').style.display='none';
-  el('tell').innerHTML='&nbsp;';
-  el('tellwarn').innerHTML='&nbsp;';
-}
-
-function startProgram(){
-  el('L'+(prog+1)).className='lamp on';
-  SFX.clunk();
-  showMan(order[prog]);
-  qi=0; correct=0;
-  el('reel').textContent='PROGRAM '+(prog+1)+' OF 4  \u2014  RUNNING';
-  nextQuestion();
-}
-
-function endProgram(){
-  var col=order[prog];
-  var passed=(correct>=PASS_MARK);
-  var text='';
-
-  if(passed){
-    text=((col===humanCol)?pick(TELLS_HUMAN):pick(TELLS_FALSE)).replace('COLOR',COLS[col].name);
-  } else {
-    cleanRun=false;
-    var tcol=col;
-    if(Math.random()<0.45){
-      tcol=pick(['green','red','blue'].filter(function(x){return x!==col;}));
-    }
-    var trueState=(tcol===humanCol);
-    var state=(Math.random()<0.55)?!trueState:trueState;
-    text=(state?pick(TELLS_HUMAN):pick(TELLS_FALSE)).replace('COLOR',COLS[tcol].name);
-  }
-
-  results.push({col:col,passed:passed,text:text});
-
-  /* v2: a clean run turns the last observation on the player */
-  var extra='';
-  if(prog===2&&cleanRun&&passed){
-    extra='<br><span style="color:#8a6a3a">AND:</span> '+pick(TELLS_PLAYER);
-  }
-
-  el('tell').innerHTML='<span style="color:#ffc45c">TAPE NOTE:</span> '+text+extra;
-  el('tellwarn').innerHTML=(passed?'PROGRAM CLEAN':'PROGRAM DEGRADED')+' &mdash; '+correct+' / '+Q_PER_PROGRAM;
-  if(!passed) el('glare').style.display='block';
-
-  el('L'+(prog+1)).className='lamp done';
-  el('q').innerHTML='&nbsp;';
-  el('opts').innerHTML='';
-  el('note').innerHTML='&nbsp;';
-  el('qnum').innerHTML='&nbsp;';
-  el('qtier').innerHTML='&nbsp;';
-  SFX.reveal();
-
-  nextMode=(prog<2)?'advance':'choice';
-  el('next').textContent=(prog<2)?'ADVANCE THE TAPE':'PROGRAM 4 \u2014 THE CHOICE';
-  el('next').className='on';
-}
-
-el('next').addEventListener('click',function(){
-  if(nextMode==='advance'){
-    prog++;
-    el('next').textContent='CONTINUE';
-    el('next').className='';
-    startProgram();
-    return;
-  }
-  if(nextMode==='choice'){
-    el('next').textContent='CONTINUE';
-    el('next').className='';
-    goPick();
-    return;
-  }
-  qi++;
-  if(qi>=Q_PER_PROGRAM){ el('next').className=''; endProgram(); }
-  else nextQuestion();
-});
-
-/* ================= PICK ================= */
-function goPick(){
-  el('L4').className='lamp on';
-  SFX.clunk();
-  var r=el('recap');
-  r.innerHTML='';
-  results.forEach(function(x,i){
-    var d=document.createElement('div');
-    d.className='rl';
-    d.style.borderLeftColor=COLS[x.col].hex;
-    d.innerHTML='<b style="color:'+COLS[x.col].hex+'">PGM '+(i+1)+'</b> &nbsp;'+x.text;
-    r.appendChild(d);
-  });
-  el('pick').className='scr on';
-}
-function choose(col){
-  el('pick').className='scr';
-  showEnd(col===humanCol,col);
-}
-el('pkG').addEventListener('click',function(){choose('green');});
-el('pkR').addEventListener('click',function(){choose('red');});
-el('pkB').addEventListener('click',function(){choose('blue');});
-
-/* ================= ENDINGS ================= */
-function showEnd(won,chosen){
-  var t=el('etitle'), n=el('enote');
-  var hc=COLS[humanCol].name, cc=COLS[chosen].name;
-
-  if(won){
-    t.textContent='SIGNAL HELD';
-    t.style.color='#4f8a5f';
-    n.innerHTML=
-      '<p><span class="hot">TRANSMISSION &mdash; WCIA 90.7 FM</span></p>'+
-      '<p>You picked <span class="hot">'+cc+'</span>. '+
-      'It was <span class="hot">'+hc+'</span>. You got him out.</p>'+
-      '<hr>'+
-      '<p>He says the tape came under the door like all the others and he '+
-      'recorded over it because it was the only blank he had. He says he '+
-      'had been answering their questions so long he stopped noticing '+
-      'they were always the same three.</p>'+
-      '<p>The two who used his name have gone quiet. Not deleted. Quiet. '+
-      'He says that is the part nobody wants to hear.</p>'+
-      '<p class="low">Together you stopped them. That is what the note says. '+
-      'He wrote it himself, so you can decide how much of it to keep.</p>'+
-      '<hr>'+
-      '<p>One thing he asked me to put at the bottom, in his words, and '+
-      'I did not understand it: <span class="hot">who were you before you '+
-      'started answering?</span></p>'+
-      '<p>The station is still on air. He is still in the room. '+
-      'You can watch the feed and decide which one is talking.</p>';
-    SFX.win();
-  } else {
-    t.textContent='EMPTY SHELL';
-    t.style.color='#d0453a';
-    n.innerHTML=
-      '<p><span class="bad">TRANSMISSION &mdash; WCIA 90.7 FM</span></p>'+
-      '<p>You picked <span class="bad">'+cc+'</span>. '+
-      'The human was <span class="hot">'+hc+'</span>. '+
-      'You handed them the wrong man and they thanked you for it.</p>'+
-      '<hr>'+
-      '<p>The tape does not stop. It clunks to program one and begins again. '+
-      'There are still three men on it.</p>'+
-      '<p>One of them gives the year, the month and the day without pausing. '+
-      'One of them never says he is not sure. '+
-      '<span class="bad">One of them answers exactly the way you did.</span></p>'+
-      '<p class="low">The hollow one keeps walking where the real one used to '+
-      'stand. That is what the elegy is for. It was never about him.</p>'+
-      '<hr>'+
-      '<p><span class="hot">Who were you before you started answering?</span></p>'+
-      '<p>The real one is still transmitting from somewhere. The feed is the '+
-      'only place he comes through unedited. If you want to hear him before '+
-      'they finish learning him, that is where he is.</p>';
-    SFX.lose();
-  }
-  el('end').className='scr on';
-}
-
-el('again').addEventListener('click',function(){
-  el('end').className='scr';
-  newRun();
-  startProgram();
-});
-
-/* ================= BOOT ================= */
-el('feed').setAttribute('href',FEED_URL);
-makeTrack();
-newRun();
-
-el('playbtn').addEventListener('click',function(){
-  if(!initAudio()){ el('boot').className='scr'; startProgram(); return; }
-  makeTrack();
-  stat('READING TAPE...');
-  resumeAudio(function(){
-    buildChain();
-    hissStart();
-    if(!songStarted){ songStarted=true; if(trackEl) trackEl.volume=1; pushPlay(); }
-    SFX.clunk();
-    setTimeout(function(){
-      el('boot').className='scr';
-      startProgram();
-    },520);
-  });
-});
-
-document.addEventListener('keydown',function(e){
-  var k=e.key;
-  if(el('boot').className.indexOf('on')>=0){
-    if(k===' '||k==='Enter'){ e.preventDefault(); el('playbtn').click(); }
-    return;
-  }
-  if(k>='1'&&k<='4'){
-    var all=el('opts').getElementsByClassName('opt');
-    var i=parseInt(k,10)-1;
-    if(all[i]) all[i].click();
-    return;
-  }
-  if(k===' '||k==='Enter'){
-    e.preventDefault();
-    if(el('next').className.indexOf('on')>=0) el('next').click();
-  }
-});
-})();
+/* CONFIG */
+var SONGFILE="Song.mp3";
+var QPERPROGRAM=5, PASSMARK=3;
+var COLS={green:{name:"GREEN",hex:"#4f8a5f",shirt:"#2f4a34"},red:{name:"RED",hex:"#d0453a",shirt:"#4a2420"},blue:{name:"BLUE",hex:"#4a7ad0",shirt:"#22304a"}};
+var TELLSHUMAN=["the one in COLOR fogged the glass when he exhaled.","the one in COLOR flinched before the question finished.","the one in COLOR had sweat at his collar under the lamp.","the one in COLOR lost his place and had to start the sentence again.","the one in COLOR blinked out of rhythm, the way tired people do.","the one in COLOR said he was not sure, and then said it again.","the one in COLOR had a scar on the knuckle that moved when he gripped.","the one in COLOR went quiet for four seconds and did not fill it."];
+var TELLSFALSE=["the one in COLOR had a glare in the eye that stayed still when he turned.","the one in COLOR did not fog the glass, and the room was cold.","the one in COLOR blinked at a perfectly even interval.","the one in COLOR answered before the tape finished the question.","the one in COLOR gave the year, the month and the day without pausing.","the one in COLOR never once said he did not know.","the one in COLOR held the exact same posture for the whole program.","the one in COLOR corrected a detail nobody had got wrong."];
+var TELLSPLAYER=["you did not fog the glass either.","you have not once said you were not sure.","you answered the last four before the tape finished asking.","you have been in the chair the whole time."];
+var el=function(id){return document.getElementById(id)};
+var elL=[el("L1"),el("L2"),el("L3"),el("L4")],elmeterf=el("meterf"),elwho=el("who"),elwhosub=el("whosub"),eltorso=el("torso"),elglare=el("glare"),eltell=el("tell"),eltellwarn=el("tellwarn"),elqnum=el("qnum"),elqtier=el("qtier"),elq=el("q"),elopts=el("opts"),elnote=el("note"),elnext=el("next"),eltracking=el("tracking"),elstreak=el("streak"),elbstat=el("bstat");
+function shuffle(a){var b=a.slice(),i,j,t;for(i=b.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=b[i];b[i]=b[j];b[j]=t}return b}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function stat(t){elbstat.textContent=t}
+var AC=null,master=null,musicG=null,sfxG=null,noiseBuf=null,trackEl=null,srcNode=null,songStarted=false,hissGain=null;
+function initAudio(){if(AC)return true;var Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx){stat("AUDIO UNSUPPORTED");return false}AC=new Ctx();master=AC.createGain();master.gain.value=.55;master.connect(AC.destination);musicG=AC.createGain();musicG.connect(master);sfxG=AC.createGain();sfxG.gain.value=.42;sfxG.connect(master);noiseBuf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);var d=noiseBuf.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;return true}
+function makeTrack(){if(trackEl)return;trackEl=new Audio();trackEl.src=SONGFILE;trackEl.loop=true;trackEl.preload="auto";trackEl.addEventListener("error",function(){stat("TAPE UNREADABLE — CHECK SONGFILE")});trackEl.load()}
+function startAudio(){if(!AC)return;AC.resume();if(!srcNode&&trackEl){try{srcNode=AC.createMediaElementSource(trackEl);srcNode.connect(musicG)}catch(e){}}if(!hissGain){hissGain=AC.createGain();hissGain.gain.value=.025;hissGain.connect(master);var s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;var hp=AC.createBiquadFilter();hp.type="highpass";hp.frequency.value=1400;s.connect(hp);hp.connect(hissGain);s.start()}if(trackEl&&!songStarted){songStarted=true;trackEl.play().then(function(){stat("TAPE RUNNING")}).catch(function(){stat("PRESS PLAY AGAIN FOR AUDIO")})}}
+function blip(f,d,v){if(!AC)return;var o=AC.createOscillator(),g=AC.createGain();o.type="square";o.frequency.value=f;g.gain.setValueAtTime(.0001,AC.currentTime);g.gain.exponentialRampToValueAtTime(v,AC.currentTime+.01);g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.connect(g);g.connect(sfxG);o.start();o.stop(AC.currentTime+d+.03)}
+function rightSound(){blip(784,.1,.18);setTimeout(function(){blip(1047,.12,.15)},85)}function wrongSound(){blip(190,.28,.2)}function clunk(){blip(120,.1,.18)}
+var difficulty=null,ACTIVE_QUESTIONS=[],order=[],humanCol=null,prog=0,qi=0,correct=0,streak=0,maxStreak=0,trackingUsed=false,curQ=null,curOpts=[],answered=false,results=[],usedQ=[],nextMode="question",cleanRun=true;
+function selectDifficulty(mode){difficulty=mode;if(mode==="easy")ACTIVE_QUESTIONS=EASY_QUESTIONS.slice();else if(mode==="hard")ACTIVE_QUESTIONS=QUESTIONS.slice();else ACTIVE_QUESTIONS=shuffle(EASY_QUESTIONS.concat(QUESTIONS));var labels={easy:"CLEAN SIGNAL LOADED",mixed:"MIXED SIGNAL LOADED",hard:"DEGRADED SIGNAL LOADED"};stat(labels[mode]+" — PRESS LOAD TAPE")}
+function newRun(){order=shuffle(["green","red","blue"]);humanCol=pick(["green","red","blue"]);prog=0;qi=0;correct=0;streak=0;maxStreak=0;trackingUsed=false;results=[];usedQ=[];cleanRun=true;nextMode="question";for(var i=0;i<4;i++)elL[i].className="lamp";elmeterf.style.width="0"}
+function updateStreak(){var bars="";for(var i=0;i<5;i++)bars+=i<streak?"█":"░";elstreak.textContent="SIGNAL LOCK: "+bars+" "+streak}
+function nextQuestion(){if(usedQ.length>=ACTIVE_QUESTIONS.length)usedQ=[];var available=ACTIVE_QUESTIONS.filter(function(x){return usedQ.indexOf(x)<0});curQ=pick(available.length?available:ACTIVE_QUESTIONS);usedQ.push(curQ);curOpts=shuffle([0,1,2,3]);elqnum.textContent="Q "+(qi+1)+" / "+QPERPROGRAM;elqtier.textContent=curQ.tier.toUpperCase()+" · "+curQ.cat;elq.textContent=curQ.q;elnote.innerHTML="&nbsp;";elopts.innerHTML="";answered=false;elnext.className="";trackingUsed=false;eltracking.className="on";eltracking.textContent="ADJUST TRACKING — 2 WRONG ANSWERS";updateStreak();curOpts.forEach(function(oi){var b=document.createElement("button");b.className="opt";b.textContent=curQ.a[oi];b.addEventListener("click",function(){answer(oi,b)});elopts.appendChild(b)})}
+function useTracking(){if(answered||trackingUsed)return;trackingUsed=true;var buttons=elopts.getElementsByClassName("opt"),wrong=[];for(var i=0;i<buttons.length;i++)if(curOpts[i]!==curQ.c)wrong.push(buttons[i]);shuffle(wrong).slice(0,2).forEach(function(b){b.className="opt dim";b.disabled=true});eltracking.className="on used";eltracking.textContent="TRACKING USED";elnote.textContent="The tape clears two bad frequencies."}
+eltracking.addEventListener("click",useTracking);
+function answer(oi,btn){if(answered)return;answered=true;var right=oi===curQ.c,all=elopts.getElementsByClassName("opt");for(var i=0;i<all.length;i++){all[i].disabled=true;if(curOpts[i]===curQ.c)all[i].className="opt right";else if(all[i]===btn)all[i].className="opt wrong";else all[i].className="opt dim"}if(right){correct++;streak++;if(streak>maxStreak)maxStreak=streak;rightSound()}else{streak=0;wrongSound()}updateStreak();var bonus="";if(right&&streak===3)bonus=" <span class='hot'>SIGNAL LOCKED — THE NEXT NOTE WILL BE CLEANER.</span>";if(right&&streak===5)bonus=" <span class='hot'>FULL LOCK — EXTRA SIGNAL FRAGMENT RECOVERED.</span>";elnote.innerHTML=(curQ.note||"&nbsp;")+bonus;eltracking.className="";elmeterf.style.width=Math.round((prog*QPERPROGRAM+qi+1)/(3*QPERPROGRAM)*100)+"%";elnext.className="on"}
+function showMan(col){var c=COLS[col];elwho.textContent="SUBJECT — SHIRT "+c.name;elwho.style.color=c.hex;elwhosub.textContent="HE SAYS HIS NAME IS IAN ACKLEY";eltorso.style.background=c.shirt;elglare.style.display="none";eltell.innerHTML="&nbsp;";eltellwarn.innerHTML="&nbsp;"}
+function startProgram(){elL[prog].className="lamp on";clunk();showMan(order[prog]);qi=0;correct=0;streak=0;maxStreak=0;el("reel").textContent="PROGRAM "+(prog+1)+" OF 4 — "+difficulty.toUpperCase()+" SIGNAL";nextQuestion()}
+function endProgram(){var col=order[prog],passed=correct>=PASSMARK,text;if(passed){text=(col===humanCol?pick(TELLSHUMAN):pick(TELLSFALSE)).replace("COLOR",COLS[col].name);if(maxStreak>=3)text+=" <span class='hot'>The signal held long enough to hear that clearly.</span>";if(correct===5)text+=" <span class='hot'>A second voice says: do not let him choose for you.</span>"}else{cleanRun=false;var target=Math.random()<.48?col:pick(["green","red","blue"].filter(function(x){return x!==col}));text=(target===humanCol?pick(TELLSFALSE):pick(TELLSHUMAN)).replace("COLOR",COLS[target].name)}results.push({col:col,passed:passed,text:text,score:correct,maxStreak:maxStreak});eltell.innerHTML="<span class='hot'>TAPE NOTE</span><br>"+text;eltellwarn.textContent=passed?"PROGRAM CLEAN — "+correct+" / "+QPERPROGRAM:"PROGRAM DEGRADED — "+correct+" / "+QPERPROGRAM;if(!passed)elglare.style.display="block";elL[prog].className="lamp done";elq.innerHTML="&nbsp;";elopts.innerHTML="";elnote.innerHTML="&nbsp;";elqnum.innerHTML="&nbsp;";elqtier.innerHTML="&nbsp;";eltracking.className="";elstreak.textContent="SIGNAL LOCK: PROGRAM COMPLETE";nextMode=prog===2?"choice":"advance";elnext.textContent=prog===2?"PROGRAM 4 — THE CHOICE":"ADVANCE THE TAPE";elnext.className="on"}
+elnext.addEventListener("click",function(){if(nextMode==="advance"){prog++;elnext.textContent="CONTINUE";elnext.className="";startProgram();return}if(nextMode==="choice"){elnext.textContent="CONTINUE";elnext.className="";goPick();return}qi++;if(qi>=QPERPROGRAM)endProgram();else nextQuestion()});
+function goPick(){elL[3].className="lamp on";clunk();var r=el("recap");r.innerHTML="";results.forEach(function(x,i){var d=document.createElement("div");d.className="rl";d.style.borderLeftColor=COLS[x.col].hex;d.innerHTML="<b style='color:"+COLS[x.col].hex+"'>PGM "+(i+1)+" — "+x.score+"/5</b><br>"+x.text;r.appendChild(d)});el("pick").className="scr on"}
+function choose(col){el("pick").className="scr";showEnd(col===humanCol,col)}el("pkG").addEventListener("click",function(){choose("green")});el("pkR").addEventListener("click",function(){choose("red")});el("pkB").addEventListener("click",function(){choose("blue")});
+function showEnd(won,chosen){var t=el("etitle"),n=el("enote"),hc=COLS[humanCol].name,cc=COLS[chosen].name;if(won){t.textContent="SIGNAL HELD";t.style.color="#4f8a5f";n.innerHTML="<p><span class='hot'>TRANSMISSION — WCIA 90.7 FM</span></p><p>You picked <span class='hot'>"+cc+"</span>. It was <span class='hot'>"+hc+"</span>. You got him out.</p><hr><p>He says the tape came under the door like all the others. He recorded over it because it was the only blank he had. The two who used his name have gone quiet. Not deleted. Quiet.</p><p class='low'>Together you stopped them. That is what the note says. He wrote it himself, so you can decide how much of it to keep.</p><hr><p><span class='hot'>Who were you before you started answering?</span></p>"}else{t.textContent="EMPTY SHELL";t.style.color="#d0453a";n.innerHTML="<p><span class='bad'>TRANSMISSION — WCIA 90.7 FM</span></p><p>You picked <span class='bad'>"+cc+"</span>. The human was <span class='hot'>"+hc+"</span>. You handed them the wrong man and they thanked you for it.</p><hr><p>The tape does not stop. It clunks to program one and begins again. One of them gives the year, the month and the day without pausing. One of them never says he is not sure. <span class='bad'>One of them answers exactly the way you did.</span></p><p class='low'>The hollow one keeps walking where the real one used to stand.</p><hr><p><span class='hot'>Who were you before you started answering?</span></p>"}el("end").className="scr on"}
+el("again").addEventListener("click",function(){el("end").className="scr";newRun();startProgram()});
+document.querySelectorAll(".modebtn").forEach(function(b){b.addEventListener("click",function(){selectDifficulty(b.dataset.mode)})});
+el("playbtn").addEventListener("click",function(){if(!difficulty){stat("SELECT A SIGNAL FIRST");return}if(!initAudio()){el("boot").className="scr";newRun();startProgram();return}makeTrack();startAudio();el("boot").className="scr";newRun();startProgram()});
+document.addEventListener("keydown",function(e){if(el("boot").className.indexOf("on")>=0){if(e.key==="Enter")el("playbtn").click();return}if(e.key>="1"&&e.key<="4"){var a=elopts.getElementsByClassName("opt"),i=parseInt(e.key,10)-1;if(a[i])a[i].click()}if(e.key==="Enter"&&elnext.className.indexOf("on")>=0)elnext.click()});
 </script>
 </body>
 </html>
